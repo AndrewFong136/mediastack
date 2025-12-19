@@ -95,7 +95,6 @@ services:
     user: root
     environment:
       - TZ=${TIMEZONE:?err}
-      - CF_DNS_API_TOKEN=${CLOUDFLARE_DNS_API_TOKEN:?err}
     ports:
       - ${REVERSE_PROXY_PORT_HTTP:?err}:80
       - ${REVERSE_PROXY_PORT_HTTPS:?err}:443
@@ -110,9 +109,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.traefik.service=api@internal
-      - traefik.http.routers.traefik.rule=Host(`traefik.${CLOUDFLARE_DNS_ZONE:?err}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
-      - traefik.http.routers.traefik.entrypoints=secureweb
-      - traefik.http.routers.traefik.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.traefik.rule=Host(`traefik.${URL_PATH:?err}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      - traefik.http.routers.traefik.entrypoints=web
     # SERVICES
       - traefik.http.services.traefik.loadbalancer.server.scheme=http
       - traefik.http.services.traefik.loadbalancer.server.port=8080
@@ -147,9 +145,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.bazarr.service=bazarr
-      - traefik.http.routers.bazarr.rule=Host(`bazarr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.bazarr.entrypoints=secureweb
-      - traefik.http.routers.bazarr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.bazarr.rule=Host(`bazarr.${URL_PATH:?err}`)
+      - traefik.http.routers.bazarr.entrypoints=web
     # SERVICES
       - traefik.http.services.bazarr.loadbalancer.server.scheme=http
       - traefik.http.services.bazarr.loadbalancer.server.port=6767
@@ -187,9 +184,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.filebot.service=filebot
-      - traefik.http.routers.filebot.rule=Host(`filebot.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.filebot.entrypoints=secureweb
-      - traefik.http.routers.filebot.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.filebot.rule=Host(`filebot.${URL_PATH:?err}`)
+      - traefik.http.routers.filebot.entrypoints=web
     # SERVICES
       - traefik.http.services.filebot.loadbalancer.server.scheme=http
       - traefik.http.services.filebot.loadbalancer.server.port=5454
@@ -220,9 +216,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.flaresolverr.service=flaresolverr
-      - traefik.http.routers.flaresolverr.rule=Host(`flaresolverr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.flaresolverr.entrypoints=secureweb
-      - traefik.http.routers.flaresolverr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.flaresolverr.rule=Host(`flaresolverr.${URL_PATH:?err}`)
+      - traefik.http.routers.flaresolverr.entrypoints=web
     # SERVICES
       - traefik.http.services.flaresolverr.loadbalancer.server.scheme=http
       - traefik.http.services.flaresolverr.loadbalancer.server.port=8191
@@ -253,9 +248,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.huntarr.service=huntarr
-      - traefik.http.routers.huntarr.rule=Host(`huntarr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.huntarr.entrypoints=secureweb
-      - traefik.http.routers.huntarr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.huntarr.rule=Host(`huntarr.${URL_PATH:?err}`)
+      - traefik.http.routers.huntarr.entrypoints=web
     # SERVICES
       - traefik.http.services.huntarr.loadbalancer.server.scheme=http
       - traefik.http.services.huntarr.loadbalancer.server.port=9705
@@ -295,9 +289,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.jellyfin.service=jellyfin
-      - traefik.http.routers.jellyfin.rule=Host(`jellyfin.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.jellyfin.entrypoints=secureweb
-      - traefik.http.routers.jellyfin.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.jellyfin.rule=Host(`jellyfin.${URL_PATH:?err}`)
+      - traefik.http.routers.jellyfin.entrypoints=web
     # SERVICES
       - traefik.http.services.jellyfin.loadbalancer.server.scheme=http
       - traefik.http.services.jellyfin.loadbalancer.server.port=8096
@@ -330,9 +323,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.jellyseerr.service=jellyseerr
-      - traefik.http.routers.jellyseerr.rule=Host(`jellyseerr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.jellyseerr.entrypoints=secureweb
-      - traefik.http.routers.jellyseerr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.jellyseerr.rule=Host(`jellyseerr.${URL_PATH:?err}`)
+      - traefik.http.routers.jellyseerr.entrypoints=web
     # SERVICES
       - traefik.http.services.jellyseerr.loadbalancer.server.scheme=http
       - traefik.http.services.jellyseerr.loadbalancer.server.port=5055
@@ -367,9 +359,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.lidarr.service=lidarr
-      - traefik.http.routers.lidarr.rule=Host(`lidarr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.lidarr.entrypoints=secureweb
-      - traefik.http.routers.lidarr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.lidarr.rule=Host(`lidarr.${URL_PATH:?err}`)
+      - traefik.http.routers.lidarr.entrypoints=web
     # SERVICES
       - traefik.http.services.lidarr.loadbalancer.server.scheme=http
       - traefik.http.services.lidarr.loadbalancer.server.port=8686
@@ -403,9 +394,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.prowlarr.service=prowlarr
-      - traefik.http.routers.prowlarr.rule=Host(`prowlarr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.prowlarr.entrypoints=secureweb
-      - traefik.http.routers.prowlarr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.prowlarr.rule=Host(`prowlarr.${URL_PATH:?err}`)
+      - traefik.http.routers.prowlarr.entrypoints=web
     # SERVICES
       - traefik.http.services.prowlarr.loadbalancer.server.scheme=http
       - traefik.http.services.prowlarr.loadbalancer.server.port=9696
@@ -442,9 +432,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.qbittorrent.service=qbittorrent
-      - traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.qbittorrent.entrypoints=secureweb
-      - traefik.http.routers.qbittorrent.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${URL_PATH:?err}`)
+      - traefik.http.routers.qbittorrent.entrypoints=web
     # SERVICES
       - traefik.http.services.qbittorrent.loadbalancer.server.scheme=http
       - traefik.http.services.qbittorrent.loadbalancer.server.port=${WEBUI_PORT_QBITTORRENT:?err}
@@ -479,9 +468,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.radarr.service=radarr
-      - traefik.http.routers.radarr.rule=Host(`radarr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.radarr.entrypoints=secureweb
-      - traefik.http.routers.radarr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.radarr.rule=Host(`radarr.${URL_PATH:?err}`)
+      - traefik.http.routers.radarr.entrypoints=web
     # SERVICES
       - traefik.http.services.radarr.loadbalancer.server.scheme=http
       - traefik.http.services.radarr.loadbalancer.server.port=7878
@@ -516,9 +504,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.readarr.service=readarr
-      - traefik.http.routers.readarr.rule=Host(`readarr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.readarr.entrypoints=secureweb
-      - traefik.http.routers.readarr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.readarr.rule=Host(`readarr.${URL_PATH:?err}`)
+      - traefik.http.routers.readarr.entrypoints=web
     # SERVICES
       - traefik.http.services.readarr.loadbalancer.server.scheme=http
       - traefik.http.services.readarr.loadbalancer.server.port=8787
@@ -553,9 +540,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.sonarr.service=sonarr
-      - traefik.http.routers.sonarr.rule=Host(`sonarr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.sonarr.entrypoints=secureweb
-      - traefik.http.routers.sonarr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.sonarr.rule=Host(`sonarr.${URL_PATH:?err}`)
+      - traefik.http.routers.sonarr.entrypoints=web
     # SERVICES
       - traefik.http.services.sonarr.loadbalancer.server.scheme=http
       - traefik.http.services.sonarr.loadbalancer.server.port=8989
@@ -599,9 +585,8 @@ services:
       - traefik.enable=true
     # ROUTERS
       - traefik.http.routers.tdarr.service=tdarr
-      - traefik.http.routers.tdarr.rule=Host(`tdarr.${CLOUDFLARE_DNS_ZONE:?err}`)
-      - traefik.http.routers.tdarr.entrypoints=secureweb
-      - traefik.http.routers.tdarr.middlewares=authentik-forwardauth@file,security-headers@file,traefik-bouncer@file
+      - traefik.http.routers.tdarr.rule=Host(`tdarr.${URL_PATH:?err}`)
+      - traefik.http.routers.tdarr.entrypoints=web
     # SERVICES
       - traefik.http.services.tdarr.loadbalancer.server.scheme=http
       - traefik.http.services.tdarr.loadbalancer.server.port=${WEBUI_PORT_TDARR:?err}

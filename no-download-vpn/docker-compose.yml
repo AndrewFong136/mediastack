@@ -1,3 +1,713 @@
+###########################################################################
+###########################################################################
+networks:
+  mediastack:
+    name: mediastack
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: ${DOCKER_SUBNET:?err}
+        gateway: ${DOCKER_GATEWAY:?err}
+
+###########################################################################
+###########################################################################
+services:
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Postgresql
+##  Function: Postgresql Database Server
+##
+##  Documentation: https://hub.docker.com/_/postgres
+##
+###########################################################################
+###########################################################################
+  postgresql:
+    image: docker.io/library/postgres:latest
+    container_name: postgresql
+    restart: unless-stopped
+    networks:
+      - mediastack
+    user: ${PUID:?err}:${PGID:?err}
+    ports:
+      - ${POSTGRESQL_PORT:?err}:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - ${FOLDER_FOR_DATA:?err}/postgresql:/var/lib/postgresql/data
+    environment:
+      - TZ=${TIMEZONE:?err}
+      - POSTGRES_DB=${AUTHENTIK_DATABASE:?err}
+      - POSTGRES_USER=${POSTGRESQL_USERNAME:?err}
+      - POSTGRES_PASSWORD=${POSTGRESQL_PASSWORD:?err}
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Valkey (same as Redis)
+##  Function: High Performance Data Structure Server
+##
+##  Documentation: https://hub.docker.com/r/valkey/valkey
+##
+###########################################################################
+###########################################################################
+  valkey:
+    image: valkey/valkey:alpine
+    container_name: valkey
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    networks:
+      - mediastack
+    user: ${PUID:?err}:${PGID:?err}
+    ports:
+      - ${VALKEY_PORT:?err}:6379
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+      - ${FOLDER_FOR_DATA:?err}/valkey:/data
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Traefik
+##  Function: Reverse Proxy Routing Server
+##
+##  Documentation: https://doc.traefik.io/traefik/
+##
+###########################################################################
+###########################################################################
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: unless-stopped
+    networks:
+      - mediastack
+    user: root
+    environment:
+      - TZ=${TIMEZONE:?err}
+    ports:
+      - ${REVERSE_PROXY_PORT_HTTP:?err}:80
+      - ${REVERSE_PROXY_PORT_HTTPS:?err}:443
+      - ${WEBUI_PORT_TRAEFIK:?err}:8080
+      - ${METRICS_PORT_TRAEFIK:?err}:8082
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${FOLDER_FOR_DATA:?err}/logs/traefik:/var/log
+      - ${FOLDER_FOR_DATA:?err}/traefik:/etc/traefik
+      - ${FOLDER_FOR_DATA:?err}/traefik/letsencrypt:/letsencrypt
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.traefik.service=api@internal
+      - traefik.http.routers.traefik.rule=Host(`traefik.${URL_PATH:?err}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      - traefik.http.routers.traefik.entrypoints=web
+    # SERVICES
+      - traefik.http.services.traefik.loadbalancer.server.scheme=http
+      - traefik.http.services.traefik.loadbalancer.server.port=8080
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Bazarr (LinuxServer.io)
+##  Function: Download subtitles for Radarr and Sonarr
+##
+##  Documentation: https://docs.linuxserver.io/images/docker-bazarr
+##
+###########################################################################
+###########################################################################
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}:/data
+      - ${FOLDER_FOR_DATA:?err}/bazarr:/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - TZ=${TIMEZONE:?err}
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:bazarr
+      - TP_THEME=${TP_THEME:?err}
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.bazarr.service=bazarr
+      - traefik.http.routers.bazarr.rule=Host(`bazarr.${URL_PATH:?err}`)
+      - traefik.http.routers.bazarr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.bazarr.loadbalancer.server.scheme=http
+      - traefik.http.services.bazarr.loadbalancer.server.port=6767
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Filebot (GitHub)
+##  Function: Lookup and Rename Media from Internet Databases
+##
+##  Docker Page:   https://github.com/filebot/filebot-docker#filebot-xpra
+##  Homepage:      https://www.filebot.net/
+##  User Forum:    https://www.filebot.net/forums
+##
+###########################################################################
+###########################################################################
+  filebot:
+    image: rednoah/filebot:xpra
+    container_name: filebot
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}/filebot:/filebot
+      - ${FOLDER_FOR_DATA:?err}/filebot:/data/filebot
+    environment:
+#      - XPRA_AUTH=password:value=YOUR_PASSWORD
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - UMASK=${UMASK:?err}
+      - TZ=${TIMEZONE:?err}
+      - DARK_MODE=1
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.filebot.service=filebot
+      - traefik.http.routers.filebot.rule=Host(`filebot.${URL_PATH:?err}`)
+      - traefik.http.routers.filebot.entrypoints=web
+    # SERVICES
+      - traefik.http.services.filebot.loadbalancer.server.scheme=http
+      - traefik.http.services.filebot.loadbalancer.server.port=5454
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Flaresolverr (Flaresolverr)
+##  Function: Cloudflare Proxy Server
+##
+##  Documentation: https://github.com/FlareSolverr/FlareSolverr
+##
+###########################################################################
+###########################################################################
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=${TIMEZONE:?err}
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.flaresolverr.service=flaresolverr
+      - traefik.http.routers.flaresolverr.rule=Host(`flaresolverr.${URL_PATH:?err}`)
+      - traefik.http.routers.flaresolverr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.flaresolverr.loadbalancer.server.scheme=http
+      - traefik.http.services.flaresolverr.loadbalancer.server.port=8191
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Huntarr
+##  Function: ARR Missing Content Manager
+##
+##  Documentation: https://github.com/plexguide/Huntarr.io
+##
+###########################################################################
+###########################################################################
+  huntarr:
+    image: huntarr/huntarr:latest
+    container_name: huntarr
+    volumes:
+      - ${FOLDER_FOR_DATA:?err}/huntarr:/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - TZ=${TIMEZONE:?err}
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.huntarr.service=huntarr
+      - traefik.http.routers.huntarr.rule=Host(`huntarr.${URL_PATH:?err}`)
+      - traefik.http.routers.huntarr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.huntarr.loadbalancer.server.scheme=http
+      - traefik.http.services.huntarr.loadbalancer.server.port=9705
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Jellyfin (LinuxServer.io)
+##  Function: Media Server
+##
+##  Documentation: https://jellyfin.org/docs/general/administration/installing#docker
+##  https://jellyfin.org/docs/general/administration/hardware-acceleration/
+##
+###########################################################################
+###########################################################################
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+# Add Configurations for GPU Hardware Rendering Here:
+#    devices:
+#      - /dev/dri/renderD128:/dev/dri/renderD128
+#      - /dev/dri/card0:/dev/dri/card0
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}/media:/data/media
+      - ${FOLDER_FOR_DATA:?err}/jellyfin:/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - UMASK=${UMASK:?err}
+      - TZ=${TIMEZONE:?err}
+#      - JELLYFIN_PublishedServerUrl=${LOCAL_DOCKER_IP:?err}  # Enable for DLNA - Only works on HOST Network Mode
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.jellyfin.service=jellyfin
+      - traefik.http.routers.jellyfin.rule=Host(`jellyfin.${URL_PATH:?err}`)
+      - traefik.http.routers.jellyfin.entrypoints=web
+    # SERVICES
+      - traefik.http.services.jellyfin.loadbalancer.server.scheme=http
+      - traefik.http.services.jellyfin.loadbalancer.server.port=8096
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Jellyseerr (fallenbagel)
+##  Function: Media Request Manager
+##
+##  Documentation: https://hub.docker.com/r/fallenbagel/jellyseerr
+##
+###########################################################################
+###########################################################################
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    restart: unless-stopped
+    networks:
+      - mediastack
+    volumes:
+      - ${FOLDER_FOR_DATA:?err}/jellyseerr:/app/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - UMASK=${UMASK:?err}
+      - TZ=${TIMEZONE:?err}
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.jellyseerr.service=jellyseerr
+      - traefik.http.routers.jellyseerr.rule=Host(`jellyseerr.${URL_PATH:?err}`)
+      - traefik.http.routers.jellyseerr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.jellyseerr.loadbalancer.server.scheme=http
+      - traefik.http.services.jellyseerr.loadbalancer.server.port=5055
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Lidarr (LinuxServer.io)
+##  Function: Music Library Manager
+##
+##  Documentation: https://docs.linuxserver.io/images/docker-lidarr
+##
+###########################################################################
+###########################################################################
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}:/data
+      - ${FOLDER_FOR_DATA:?err}/lidarr:/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - TZ=${TIMEZONE:?err}
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:lidarr
+      - TP_THEME=${TP_THEME:?err}
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.lidarr.service=lidarr
+      - traefik.http.routers.lidarr.rule=Host(`lidarr.${URL_PATH:?err}`)
+      - traefik.http.routers.lidarr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.lidarr.loadbalancer.server.scheme=http
+      - traefik.http.services.lidarr.loadbalancer.server.port=8686
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Prowlarr (LinuxServer.io)
+##  Function: Indexer and Search Manager
+##
+##  Documentation: https://docs.linuxserver.io/images/docker-prowlarr
+##
+###########################################################################
+###########################################################################
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_DATA:?err}/prowlarr:/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - TZ=${TIMEZONE:?err}
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:prowlarr
+      - TP_THEME=${TP_THEME:?err}
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.prowlarr.service=prowlarr
+      - traefik.http.routers.prowlarr.rule=Host(`prowlarr.${URL_PATH:?err}`)
+      - traefik.http.routers.prowlarr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.prowlarr.loadbalancer.server.scheme=http
+      - traefik.http.services.prowlarr.loadbalancer.server.port=9696
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: qBittorrent (LinuxServer.io)
+##  Function: Torrent Download Client
+##
+##  Documentation: https://docs.linuxserver.io/images/docker-qbittorrent
+##
+###########################################################################
+###########################################################################
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}:/data
+      - ${FOLDER_FOR_DATA:?err}/qbittorrent:/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - UMASK=${UMASK:?err}
+      - TZ=${TIMEZONE:?err}
+      - WEBUI_PORT=${WEBUI_PORT_QBITTORRENT:?err}
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:qbittorrent
+      - TP_THEME=${TP_THEME:?err}
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.qbittorrent.service=qbittorrent
+      - traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${URL_PATH:?err}`)
+      - traefik.http.routers.qbittorrent.entrypoints=web
+    # SERVICES
+      - traefik.http.services.qbittorrent.loadbalancer.server.scheme=http
+      - traefik.http.services.qbittorrent.loadbalancer.server.port=${WEBUI_PORT_QBITTORRENT:?err}
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Radarr (LinuxServer.io)
+##  Function: Movie Library Manager
+##
+##  Documentation: https://docs.linuxserver.io/images/docker-radarr
+##
+###########################################################################
+###########################################################################
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}:/data
+      - ${FOLDER_FOR_DATA:?err}/radarr:/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - TZ=${TIMEZONE:?err}
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:radarr
+      - TP_THEME=${TP_THEME:?err}
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.radarr.service=radarr
+      - traefik.http.routers.radarr.rule=Host(`radarr.${URL_PATH:?err}`)
+      - traefik.http.routers.radarr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.radarr.loadbalancer.server.scheme=http
+      - traefik.http.services.radarr.loadbalancer.server.port=7878
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Readarr (LinuxServer.io)
+##  Function: Book Library Manager
+##
+##  Documentation: https://docs.linuxserver.io/images/docker-readarr
+##
+###########################################################################
+###########################################################################
+  readarr:
+    image: lscr.io/linuxserver/readarr:develop
+    container_name: readarr
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}:/data
+      - ${FOLDER_FOR_DATA:?err}/readarr:/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - TZ=${TIMEZONE:?err}
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:readarr
+      - TP_THEME=${TP_THEME:?err}
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.readarr.service=readarr
+      - traefik.http.routers.readarr.rule=Host(`readarr.${URL_PATH:?err}`)
+      - traefik.http.routers.readarr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.readarr.loadbalancer.server.scheme=http
+      - traefik.http.services.readarr.loadbalancer.server.port=8787
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Sonarr (LinuxServer.io)
+##  Function: Series Library Manager (TV Shows)
+##
+##  Documentation: https://docs.linuxserver.io/images/docker-sonarr
+##
+###########################################################################
+###########################################################################
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}:/data
+      - ${FOLDER_FOR_DATA:?err}/sonarr:/config
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - TZ=${TIMEZONE:?err}
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:sonarr
+      - TP_THEME=${TP_THEME:?err}
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.sonarr.service=sonarr
+      - traefik.http.routers.sonarr.rule=Host(`sonarr.${URL_PATH:?err}`)
+      - traefik.http.routers.sonarr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.sonarr.loadbalancer.server.scheme=http
+      - traefik.http.services.sonarr.loadbalancer.server.port=8989
+    # MIDDLEWARES
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Tdarr V2 (haveagitgat/tdarr)
+##  Function: Tdarr V2 - Audio/Video library transcoding automation
+##            (Contains Tdarr_Server and WebUI ) 
+##
+##  Documentation: https://docs.tdarr.io/docs/installation/docker/run-compose/
+##  https://docs.tdarr.io/docs/installation/docker/hardware-transcoding
+##
+###########################################################################
+###########################################################################
+  tdarr:
+    image: ghcr.io/haveagitgat/tdarr:latest
+    container_name: tdarr
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}/media:/data
+      - ${FOLDER_FOR_DATA:?err}/tdarr/server:/app/server
+      - ${FOLDER_FOR_DATA:?err}/tdarr/configs:/app/configs
+      - ${FOLDER_FOR_DATA:?err}/tdarr/logs:/app/logs
+      - ${FOLDER_FOR_DATA:?err}/tdarr-node:/temp
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - UMASK=${UMASK:?err}
+      - TZ=${TIMEZONE:?err}
+      - serverIP=0.0.0.0
+      - serverPort=${TDARR_SERVER_PORT:?err}
+      - webUIPort=${WEBUI_PORT_TDARR:?err}
+      - internalNode=true
+      - nodeID=Tdarr_Server
+    networks:
+      - mediastack
+    labels:
+      - traefik.enable=true
+    # ROUTERS
+      - traefik.http.routers.tdarr.service=tdarr
+      - traefik.http.routers.tdarr.rule=Host(`tdarr.${URL_PATH:?err}`)
+      - traefik.http.routers.tdarr.entrypoints=web
+    # SERVICES
+      - traefik.http.services.tdarr.loadbalancer.server.scheme=http
+      - traefik.http.services.tdarr.loadbalancer.server.port=${WEBUI_PORT_TDARR:?err}
+    # MIDDLEWARES
+
+  tdarr-node:
+    image: ghcr.io/haveagitgat/tdarr_node:latest
+    container_name: tdarr-node
+    restart: unless-stopped
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}/media:/data
+      - ${FOLDER_FOR_DATA:?err}/tdarr/configs:/app/configs
+      - ${FOLDER_FOR_DATA:?err}/tdarr/logs:/app/logs
+      - ${FOLDER_FOR_DATA:?err}/tdarr-node:/temp
+    environment:
+      - PUID=${PUID:?err}
+      - PGID=${PGID:?err}
+      - UMASK=${UMASK:?err}
+      - TZ=${TIMEZONE:?err}
+      - nodeID=Tdarr_Node_1
+      - serverIP=0.0.0.0
+      - serverPort=${TDARR_SERVER_PORT:?err}
+    networks:
+      - mediastack
+
+###########################################################################
+###########################################################################
+##
+##  Docker Compose File: Unpackerr (Hotio.Dev)
+##  Function: Archive Media Extraction
+##
+##  Documentation: https://github.com/davidnewhall/unpackerr
+##  https://github.com/davidnewhall/unpackerr/blob/master/examples/docker-compose.yml
+##
+###########################################################################
+###########################################################################
+  unpackerr:
+    image: golift/unpackerr
+    container_name: unpackerr
+    restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
+    volumes:
+      - ${FOLDER_FOR_MEDIA:?err}:/data
+      - ${FOLDER_FOR_DATA:?err}/unpackerr:/config
+      - ${FOLDER_FOR_DATA:?err}/logs/unpackerr:/var/log
+    networks:
+      - mediastack
+    ports:
+      - ${METRICS_PORT_UNPACKERR:?err}:5656
+    environment:
+      - UMASK=${UMASK:?err}
+      - TZ=${TIMEZONE:?err}
+    # Remove all lines that begin with UN_CMDHOOK, UN_WEBHOOK, UN_FOLDER, UN_WEBSERVER, and other apps you do not use.
+    ## Global Settings
+      - UN_DEBUG=false
+      - UN_QUIET=false
+      - UN_ERROR_STDERR=false
+      - UN_ACTIVITY=false
+      - UN_LOG_QUEUES=1m
+      - UN_LOG_FILE=/var/log/unpackerr.log
+      - UN_LOG_FILES=10
+      - UN_LOG_FILE_MB=10
+      - UN_LOG_FILE_MODE=0644
+      - UN_INTERVAL=2m
+      - UN_START_DELAY=1m
+      - UN_RETRY_DELAY=5m
+      - UN_MAX_RETRIES=3
+      - UN_PARALLEL=1
+      - UN_FILE_MODE=0644
+      - UN_DIR_MODE=2755
+      ## Web Server
+      - UN_WEBSERVER_METRICS=true
+      - UN_WEBSERVER_LISTEN_ADDR=0.0.0.0:5656
+      - UN_WEBSERVER_LOG_FILE=/var/log/server.log
+      - UN_WEBSERVER_LOG_FILES=10
+      - UN_WEBSERVER_LOG_FILE_MB=10
+      - UN_WEBSERVER_SSL_CERT_FILE=
+      - UN_WEBSERVER_SSL_KEY_FILE=
+      - UN_WEBSERVER_URLBASE=/
+      - UN_WEBSERVER_UPSTREAMS=
+      ## Folder Settings
+      - UN_FOLDERS_INTERVAL=1s
+      - UN_FOLDERS_BUFFER=20000
+      ## Sonarr Settings
+      ## Sonarr Config - Copy API Key from: http://sonarr:8989/general/settings
+      - UN_SONARR_0_URL=http://sonarr:8989
+      - UN_SONARR_0_API_KEY=0123456789abcdef0123456789abcdef
+      - UN_SONARR_0_PATHS_0=/data/torrents/anime
+      - UN_SONARR_0_PATHS_1=/data/torrents/tv
+      - UN_SONARR_0_PROTOCOLS=torrent
+      - UN_SONARR_0_TIMEOUT=10s
+      - UN_SONARR_0_DELETE_DELAY=5m
+      - UN_SONARR_0_DELETE_ORIG=false
+      - UN_SONARR_0_SYNCTHING=false
+      ## Radarr Settings
+      ## Radarr Config - Copy API Key from: http://radarr:7878/general/settings
+      - UN_RADARR_0_URL=http://radarr:7878
+      - UN_RADARR_0_API_KEY=0123456789abcdef0123456789abcdef
+      - UN_RADARR_0_PATHS_0=/data/torrents/movies
+      - UN_RADARR_0_PROTOCOLS=torrent
+      - UN_RADARR_0_TIMEOUT=10s
+      - UN_RADARR_0_DELETE_DELAY=5m
+      - UN_RADARR_0_DELETE_ORIG=false
+      - UN_RADARR_0_SYNCTHING=false
+      ## Lidarr Settings
+      ## Lidarr Config - Copy API Key from: http://lidarr:8686/general/settings
+      - UN_LIDARR_0_URL=http://lidarr:8686
+      - UN_LIDARR_0_API_KEY=0123456789abcdef0123456789abcdef
+      - UN_LIDARR_0_PATHS_0=/data/torrents/music
+      - UN_LIDARR_0_PROTOCOLS=torrent
+      - UN_LIDARR_0_TIMEOUT=10s
+      - UN_LIDARR_0_DELETE_DELAY=5m
+      - UN_LIDARR_0_DELETE_ORIG=false
+      - UN_LIDARR_0_SYNCTHING=false
+      ## Readarr Settings
+      ## Readarr Config - Copy API Key from: http://readarr:8787/general/settings
+      - UN_READARR_0_URL=http://readarr:8787
+      - UN_READARR_0_API_KEY=0123456789abcdef0123456789abcdef
+      - UN_READARR_0_PATHS_0=/data/torrents/books
+      - UN_READARR_0_PROTOCOLS=torrent
+      - UN_READARR_0_TIMEOUT=10s
       - UN_READARR_0_DELETE_DELAY=5m
       - UN_READARR_0_DELETE_ORIG=false
       - UN_READARR_0_SYNCTHING=false

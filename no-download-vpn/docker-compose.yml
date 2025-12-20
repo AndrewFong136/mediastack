@@ -100,6 +100,7 @@ services:
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}:/data
       - ${FOLDER_FOR_DATA:?err}/bazarr:/config
+    user: ${PUID:?err}:${PGID:?err}
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -137,6 +138,7 @@ services:
     image: rednoah/filebot:xpra
     container_name: filebot
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}/filebot:/filebot
       - ${FOLDER_FOR_DATA:?err}/filebot:/data/filebot
@@ -209,6 +211,7 @@ services:
   huntarr:
     image: huntarr/huntarr:latest
     container_name: huntarr
+    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_DATA:?err}/huntarr:/config
     environment:
@@ -245,6 +248,7 @@ services:
     image: lscr.io/linuxserver/jellyfin:latest
     container_name: jellyfin
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
 # Add Configurations for GPU Hardware Rendering Here:
 #    devices:
 #      - /dev/dri/renderD128:/dev/dri/renderD128
@@ -287,6 +291,7 @@ services:
     image: fallenbagel/jellyseerr:latest
     container_name: jellyseerr
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
     networks:
       - mediastack
     volumes:
@@ -323,6 +328,7 @@ services:
     image: lscr.io/linuxserver/lidarr:latest
     container_name: lidarr
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}:/data
       - ${FOLDER_FOR_DATA:?err}/lidarr:/config
@@ -361,6 +367,7 @@ services:
     image: lscr.io/linuxserver/prowlarr:develop
     container_name: prowlarr
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_DATA:?err}/prowlarr:/config
     environment:
@@ -398,6 +405,7 @@ services:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}:/data
       - ${FOLDER_FOR_DATA:?err}/qbittorrent:/config
@@ -438,6 +446,7 @@ services:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}:/data
       - ${FOLDER_FOR_DATA:?err}/radarr:/config
@@ -476,6 +485,7 @@ services:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}:/data
       - ${FOLDER_FOR_DATA:?err}/sonarr:/config
@@ -516,6 +526,7 @@ services:
     image: ghcr.io/haveagitgat/tdarr:latest
     container_name: tdarr
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}/media:/data
       - ${FOLDER_FOR_DATA:?err}/tdarr/server:/app/server
@@ -551,6 +562,7 @@ services:
     image: ghcr.io/haveagitgat/tdarr_node:latest
     container_name: tdarr-node
     restart: unless-stopped
+    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}/media:/data
       - ${FOLDER_FOR_DATA:?err}/tdarr/configs:/app/configs

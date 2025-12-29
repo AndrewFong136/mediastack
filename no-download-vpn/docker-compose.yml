@@ -446,7 +446,6 @@ services:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     restart: unless-stopped
-    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}:/data
       - ${FOLDER_FOR_DATA:?err}/radarr:/config
@@ -485,7 +484,6 @@ services:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
     restart: unless-stopped
-    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}:/data
       - ${FOLDER_FOR_DATA:?err}/sonarr:/config
@@ -526,7 +524,6 @@ services:
     image: ghcr.io/haveagitgat/tdarr:latest
     container_name: tdarr
     restart: unless-stopped
-    user: ${PUID:?err}:${PGID:?err}
     volumes:
       - ${FOLDER_FOR_MEDIA:?err}/media:/data
       - ${FOLDER_FOR_DATA:?err}/tdarr/server:/app/server

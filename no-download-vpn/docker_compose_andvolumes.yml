@@ -181,7 +181,7 @@ services:
       retries: 5
       timeout: 3s
     volumes:
-      - ${FOLDER_FOR_DATA:?err}/valkey:/data
+      - valkey:/data
 
 ###########################################################################
 ###########################################################################
@@ -210,9 +210,9 @@ services:
       - 51820:51820/udp
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${FOLDER_FOR_DATA:?err}/logs/traefik:/var/log
-      - ${FOLDER_FOR_DATA:?err}/traefik:/etc/traefik
-      - ${FOLDER_FOR_DATA:?err}/traefik/letsencrypt:/letsencrypt
+      - traefik_logs:/var/log
+      - traefik:/etc/traefik
+      - traefik_letsencrypt:/letsencrypt
     labels:
       - traefik.enable=true
     # ROUTERS
@@ -239,8 +239,8 @@ services:
     container_name: bazarr
     restart: unless-stopped
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}:/data
-      - ${FOLDER_FOR_DATA:?err}/bazarr:/config
+      - media:/data
+      - bazarr:/config
     user: ${PUID:?err}:${PGID:?err}
     environment:
       - PUID=${PUID:?err}
@@ -281,8 +281,8 @@ services:
     restart: unless-stopped
     user: ${PUID:?err}:${PGID:?err}
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}/filebot:/filebot
-      - ${FOLDER_FOR_DATA:?err}/filebot:/data/filebot
+      - filebot_media:/filebot
+      - filebot:/data/filebot
     environment:
 #      - XPRA_AUTH=password:value=YOUR_PASSWORD
       - PUID=${PUID:?err}
@@ -354,7 +354,7 @@ services:
     container_name: huntarr
     user: ${PUID:?err}:${PGID:?err}
     volumes:
-      - ${FOLDER_FOR_DATA:?err}/huntarr:/config
+      - huntarr:/config
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -394,8 +394,8 @@ services:
 #      - /dev/dri/renderD128:/dev/dri/renderD128
 #      - /dev/dri/card0:/dev/dri/card0
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}/media:/data/media
-      - ${FOLDER_FOR_DATA:?err}/jellyfin:/config
+      - media_media:/data/media
+      - jellyfin:/config
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -435,7 +435,7 @@ services:
     networks:
       - mediastack
     volumes:
-      - ${FOLDER_FOR_DATA:?err}/jellyseerr:/app/config
+      - jellyseerr:/app/config
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -470,8 +470,8 @@ services:
     restart: unless-stopped
     user: ${PUID:?err}:${PGID:?err}
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}:/data
-      - ${FOLDER_FOR_DATA:?err}/lidarr:/config
+      - media:/data
+      - lidarr:/config
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -508,7 +508,7 @@ services:
     container_name: prowlarr
     restart: unless-stopped
     volumes:
-      - ${FOLDER_FOR_DATA:?err}/prowlarr:/config
+      - prowlarr:/config
     user: "${PUID:?err}:${PGID:?err}"
     environment:
       - PUID=${PUID:?err}
@@ -547,8 +547,8 @@ services:
     restart: unless-stopped
     user: ${PUID:?err}:${PGID:?err}
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}:/data
-      - ${FOLDER_FOR_DATA:?err}/qbittorrent:/config
+      - media:/data
+      - qbittorrent:/config
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -587,8 +587,8 @@ services:
     container_name: radarr
     restart: unless-stopped
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}:/data
-      - ${FOLDER_FOR_DATA:?err}/radarr:/config
+      - media:/data
+      - radarr:/config
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -626,8 +626,8 @@ services:
     restart: unless-stopped
     user: ${PUID:?err}:${PGID:?err}
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}:/data
-      - ${FOLDER_FOR_DATA:?err}/sonarr:/config
+      - media:/data
+      - sonarr:/config
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -666,11 +666,11 @@ services:
     container_name: tdarr
     restart: unless-stopped
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}/media:/data
-      - ${FOLDER_FOR_DATA:?err}/tdarr/server:/app/server
-      - ${FOLDER_FOR_DATA:?err}/tdarr/configs:/app/configs
-      - ${FOLDER_FOR_DATA:?err}/tdarr/logs:/app/logs
-      - ${FOLDER_FOR_DATA:?err}/tdarr-node:/temp
+      - media_media:/data
+      - tdarr_server:/app/server
+      - tdarr_configs:/app/configs
+      - tdarr_logs:/app/logs
+      - tdarr_node:/temp
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -702,10 +702,10 @@ services:
     restart: unless-stopped
     user: ${PUID:?err}:${PGID:?err}
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}/media:/data
-      - ${FOLDER_FOR_DATA:?err}/tdarr/configs:/app/configs
-      - ${FOLDER_FOR_DATA:?err}/tdarr/logs:/app/logs
-      - ${FOLDER_FOR_DATA:?err}/tdarr-node:/temp
+      - media_media:/data
+      - tdarr_configs:/app/configs
+      - tdarr_logs:/app/logs
+      - tdarr_node:/temp
     environment:
       - PUID=${PUID:?err}
       - PGID=${PGID:?err}
@@ -734,9 +734,9 @@ services:
     restart: unless-stopped
     user: ${PUID:?err}:${PGID:?err}
     volumes:
-      - ${FOLDER_FOR_MEDIA:?err}:/data
-      - ${FOLDER_FOR_DATA:?err}/unpackerr:/config
-      - ${FOLDER_FOR_DATA:?err}/logs/unpackerr:/var/log
+      - media:/data
+      - unpackerr:/config
+      - unpackerr_logs:/var/log
     networks:
           - mediastack
     ports:
